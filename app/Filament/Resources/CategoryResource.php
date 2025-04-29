@@ -9,6 +9,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Filament\Notifications\Notification;
 
 class CategoryResource extends Resource
 {
@@ -63,12 +64,25 @@ class CategoryResource extends Resource
             ->actions([
                 Tables\Actions\EditAction::make()
                     ->modalWidth('md')
+                    ->color('warning')
                     ->modalHeading('Editar Categoria')
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['created_by'] = filament()->auth()->id();
                         return $data;
                     }),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->requiresConfirmation()
+                    ->action(function (Category $record) {
+                        if ($record->tickets()->withoutTrashed()->exists()) {
+                            Notification::make()
+                                ->title('Não é possível excluir esta categoria')
+                                ->body('Existem chamados ativos associados a esta categoria.')
+                                ->danger()
+                                ->send();
+                            return;
+                        }
+                        $record->delete();
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
